@@ -23,12 +23,17 @@ START = 0
 MEDIA_NUM = 50
 
 # Numbers of downloading threads concurrently
-THREADS = 10
+THREADS = 1
 
 # Do you like to dump each post as separate json (otherwise you have to extract from bulk xml files)
 # This option is for convenience for terminal users who would like to query e.g. with ./jq (https://stedolan.github.io/jq/)
-EACH_POST_AS_SEPARATE_JSON = False
+EACH_POST_AS_SEPARATE_JSON = True
 
+
+def truncateTags(string):
+    string = (string[:189]) if len(string) > 189 else string #Truncates if too long
+    string = string.replace("/"," ")
+    return string
 
 def video_hd_match():
     hd_pattern = re.compile(r'.*"hdUrl":("([^\s,]*)"|false),')
@@ -72,8 +77,9 @@ class DownloadWorker(Thread):
     def download(self, medium_type, post, target_folder):
         try:
             medium_url = self._handle_medium_url(medium_type, post)
+            caption_and_tags = self._handle_tags_and_caption(medium_type, post)
             if medium_url is not None:
-                self._download(medium_type, medium_url, target_folder)
+                self._download(medium_type, medium_url, target_folder, caption_and_tags)
         except TypeError:
             pass
 
@@ -103,8 +109,43 @@ class DownloadWorker(Thread):
                             "issues/new attached with below information:\n\n"
                             "%s" % post)
 
-    def _download(self, medium_type, medium_url, target_folder):
+    def _handle_tags_and_caption(self, medium_type, post):
+        try:
+            if medium_type == "photo":
+                caption = post["photo-caption"]
+                tags = post["tag"]
+                if isinstance(tags, list):
+                    tags = ",".join(str(x) for x in post["tag"])
+                tags = truncateTags(tags)
+                post_id = post['@id']
+                #print(caption)
+                #print(tags)
+                final_output = "{0}_{1}_".format(tags, post_id)
+                if not tags: # in case there are no tags
+                    final_output = "{0}_".format(post_id)
+                return final_output
+                #tag_and_caption = post["photo-url"][0]
+                #return post["photo-url"][0]["#text"]
+
+            if medium_type == "video":
+                video_player = post["video-player"][1]["#text"]
+                for regex_rule in self.regex_rules:
+                    matched_url = regex_rule(video_player)
+                    if matched_url is not None:
+                        return matched_url
+                else:
+                    raise Exception
+        except:
+            raise TypeError("Unable to find the right url for downloading. "
+                            "Please open a new issue on "
+                            "https://github.com/dixudx/tumblr-crawler/"
+                            "issues/new attached with below information:\n\n"
+                            "%s" % post)
+
+
+    def _download(self, medium_type, medium_url, target_folder, caption_and_tags):
         medium_name = medium_url.split("/")[-1].split("?")[0]
+        medium_name = caption_and_tags + medium_name
         if medium_type == "video":
             if not medium_name.startswith("tumblr"):
                 medium_name = "_".join([medium_url.split("/")[-2],
@@ -112,7 +153,8 @@ class DownloadWorker(Thread):
 
             medium_name += ".mp4"
             medium_url = 'https://vt.tumblr.com/' + medium_name
-
+        print (medium_name)
+        #print(caption_and_tags)
         file_path = os.path.join(target_folder, medium_name)
         if not os.path.isfile(file_path):
             print("Downloading %s from %s.\n" % (medium_name,
