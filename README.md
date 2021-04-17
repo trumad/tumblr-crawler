@@ -7,6 +7,8 @@ This version names files as <tags>_<postID>_<originalFilename>.jpg as they are d
 
 Also I made it generate json for each post by default in this version. I like to have a folder full of searchable metadata about the files.
 
+Also it's single-threaded by default because Tumblr kept locking me out.
+
 This is a [Python](https://www.python.org) script that you can easily download
 all the photos and videos from your favorite tumblr blogs.
 
