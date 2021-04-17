@@ -1,6 +1,12 @@
 tumblr-crawler
 ===============
 
+##My changes:
+
+This version names files as <tags>_<postID>_<originalFilename>.jpg as they are downloaded.
+
+Also I made it generate json for each post by default in this version. I like to have a folder full of searchable metadata about the files.
+
 This is a [Python](https://www.python.org) script that you can easily download
 all the photos and videos from your favorite tumblr blogs.
 
